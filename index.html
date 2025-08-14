@@ -1,16 +1,22 @@
-<!DOCTYPE html>
+# Updated HTML with working CDN URLs for face-api.js models so it works on GitHub Pages without local weights
+
+html_content_cdn = """<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Face Shape Haircut Advisor</title>
   <style>
-    body { font-family: sans-serif; text-align: center; padding: 20px; }
+    body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f4f4; }
+    h1 { color: #333; }
     .hidden { display: none; }
-    #video-container { position: relative; display: inline-block; }
-    video, canvas { width: 320px; height: 240px; }
+    #video-container { position: relative; display: inline-block; margin-top: 20px; }
+    video, canvas { width: 320px; height: 240px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
     canvas { position: absolute; top: 0; left: 0; }
-    img { max-width: 200px; margin-top: 10px; }
+    button { margin-top: 15px; padding: 10px 20px; font-size: 16px; border: none; border-radius: 8px; background: #007BFF; color: white; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    img { max-width: 200px; margin-top: 10px; border-radius: 8px; }
+    #results { background: white; padding: 15px; border-radius: 10px; margin-top: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: inline-block; }
   </style>
 </head>
 <body>
@@ -38,9 +44,11 @@
     const shapeName = document.getElementById('shapeName');
     const shapeDesc = document.getElementById('shapeDesc');
 
+    const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
+
     async function loadModels() {
-      await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js/weights');
-      await faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js/weights');
+      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
     }
     function distance(a, b) {
       return Math.hypot(a.x - b.x, a.y - b.y);
@@ -114,4 +122,10 @@
     init();
   </script>
 </body>
-</html>
+</html>"""
+
+file_path_cdn = "/mnt/data/index_cdn.html"
+with open(file_path_cdn, "w", encoding="utf-8") as f:
+    f.write(html_content_cdn)
+
+file_path_cdn
