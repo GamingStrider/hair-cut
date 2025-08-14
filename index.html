@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Face Shape Haircut Advisor</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 20px; }
+    .hidden { display: none; }
+    #video-container { position: relative; display: inline-block; }
+    video, canvas { width: 320px; height: 240px; }
+    canvas { position: absolute; top: 0; left: 0; }
+    img { max-width: 200px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Face Shape Haircut Advisor</h1>
+  <div id="video-container">
+    <video id="video" autoplay muted></video>
+    <canvas id="overlay"></canvas>
+  </div>
+  <br>
+  <button id="captureBtn">Analyze</button>
+  <div id="results" class="hidden">
+    <img id="resultImg" alt="Captured face" />
+    <h2 id="shapeName"></h2>
+    <p id="shapeDesc"></p>
+  </div>
+
+  <!-- face-api.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+  <script>
+    const video = document.getElementById('video');
+    const overlay = document.getElementById('overlay');
+    const captureBtn = document.getElementById('captureBtn');
+    const results = document.getElementById('results');
+    const resultImg = document.getElementById('resultImg');
+    const shapeName = document.getElementById('shapeName');
+    const shapeDesc = document.getElementById('shapeDesc');
+
+    async function loadModels() {
+      await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js/weights');
+      await faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js/weights');
+    }
+    function distance(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+    async function detectShape() {
+      const res = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks();
+      if (!res) return null;
+      const lm = res.landmarks;
+      const jaw = lm.getJawOutline();
+      const chin = jaw[8];
+      const leftJaw = jaw[0], rightJaw = jaw[16];
+      const leftCheek = lm.getLeftCheek()[0], rightCheek = lm.getRightCheek()[0];
+      const leftBrow = lm.getLeftEyeBrow()[0], rightBrow = lm.getRightEyeBrow()[4];
+      const jawW = distance(leftJaw, rightJaw);
+      const cheekW = distance(leftCheek, rightCheek);
+      const browW = distance(leftBrow, rightBrow);
+      const faceH = distance({ x: (leftJaw.x + rightJaw.x)/2, y: leftJaw.y }, chin);
+      const wRatios = [jawW/faceH, cheekW/faceH, browW/faceH];
+
+      if (Math.abs(wRatios[0] - wRatios[1]) < 0.02 && Math.abs(wRatios[1] - wRatios[2]) < 0.02)
+        return 'Square';
+      if (faceH / jawW > 1.5) return 'Long';
+      if (browW > jawW && browW > cheekW) return 'Heart';
+      if (cheekW > browW && cheekW > jawW) return 'Diamond';
+      if (Math.abs(faceH - jawW) < 20) return 'Round';
+      return 'Oval';
+    }
+
+    async function drawOverlay() {
+      const ctx = overlay.getContext('2d');
+      const dims = faceapi.matchDimensions(overlay, video, true);
+      const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks();
+      ctx.clearRect(0, 0, overlay.width, overlay.height);
+      if (detection) {
+        const resized = faceapi.resizeResults(detection, dims);
+        faceapi.draw.drawFaceLandmarks(overlay, resized);
+      }
+      requestAnimationFrame(drawOverlay);
+    }
+
+    async function init() {
+      await loadModels();
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => { video.srcObject = stream; })
+        .catch(err => alert('Camera access needed'));
+      drawOverlay();
+    }
+
+    captureBtn.addEventListener('click', async () => {
+      const shape = await detectShape();
+      if (!shape) return alert('Face not found; try again');
+      const c = document.createElement('canvas');
+      c.width = video.videoWidth; c.height = video.videoHeight;
+      c.getContext('2d').drawImage(video, 0, 0);
+      resultImg.src = c.toDataURL();
+      shapeName.textContent = shape;
+      const desc = {
+        Oval: 'Versatile – most styles suit you.',
+        Round: 'Add height and angular cuts.',
+        Square: 'Go softer and textured.',
+        Heart: 'Balance wide forehead with jaw volume.',
+        Long: 'Add width with bangs or layers.',
+        Diamond: 'Highlight cheekbones with volume up top.'
+      };
+      shapeDesc.textContent = desc[shape] || '';
+      results.classList.remove('hidden');
+    });
+
+    init();
+  </script>
+</body>
+</html>
